@@ -1,5 +1,8 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
+using System.Text;
 
 namespace RNCryptor.Test
 {
@@ -91,16 +94,15 @@ namespace RNCryptor.Test
         {
 
             Encryptor encryptor = new Encryptor();
-            string encryptedB64 = encryptor.Encrypt(TestStrings.SAMPLE_PLAINTEXT, TestStrings.SAMPLE_PASSWORD_A);
+            var bytes = Encoding.UTF8.GetBytes(TestStrings.SAMPLE_PLAINTEXT);
+            byte[] encrypted = encryptor.Encrypt(bytes, TestStrings.SAMPLE_PASSWORD_A);
 
-            byte[] encrypted = Convert.FromBase64String(encryptedB64);
             encrypted[0] = 0x03;
-            string encryptedV3 = Convert.ToBase64String(encrypted);
 
             Decryptor decryptor = new Decryptor();
-            string decrypted = decryptor.Decrypt(encryptedV3, TestStrings.SAMPLE_PASSWORD_A);
+            byte[] decrypted = decryptor.Decrypt(encrypted, TestStrings.SAMPLE_PASSWORD_A);
 
-            this.reportSuccess(MethodBase.GetCurrentMethod().Name, decrypted == "");
+            reportSuccess(MethodBase.GetCurrentMethod().Name, decrypted == null);
         }
 
         // Decryptor Tests
@@ -162,9 +164,10 @@ namespace RNCryptor.Test
         private void testDecryptingWithBadPasswordFails()
         {
             Decryptor cryptor = new Decryptor();
-            string decrypted = cryptor.Decrypt(TestStrings.IOS_ENCRYPTED_V2_NON_BLOCK_INTERVAL, "bad-password");
+            var bytes = Encoding.UTF8.GetBytes(TestStrings.IOS_ENCRYPTED_V2_NON_BLOCK_INTERVAL);
+            var decrypted = cryptor.Decrypt(bytes, "bad-password");
 
-            this.reportSuccess(MethodBase.GetCurrentMethod().Name, decrypted == "");
+            reportSuccess(MethodBase.GetCurrentMethod().Name, decrypted == null);
         }
 
         // Encryptor Tests
@@ -204,57 +207,68 @@ namespace RNCryptor.Test
             this.performEncryptionTestWithSchemaCheck(MethodBase.GetCurrentMethod().Name, TestStrings.SAMPLE_PLAINTEXT, TestStrings.SAMPLE_PASSWORD_A, Schema.V2);
         }
 
-        private void performSymmetricTest(string functionName, string plaintext, string password)
+        private void performSymmetricTest(string functionName, string plainText, string password)
         {
             Encryptor encryptor = new Encryptor();
-            string encryptedB64 = encryptor.Encrypt(plaintext, password);
+            var plaintextBytes = Encoding.UTF8.GetBytes(plainText);
+            var encrypted = encryptor.Encrypt(plaintextBytes, password);
 
             Decryptor decryptor = new Decryptor();
-            string decrypted = decryptor.Decrypt(encryptedB64, password);
+            var decrypted = decryptor.Decrypt(encrypted, password);
+            var decryptedString = Encoding.UTF8.GetString(decrypted);
 
-            this.reportSuccess(functionName, decrypted == plaintext);
+            reportSuccess(functionName, decryptedString == plainText);
         }
 
-        private void performSymmetricTestWithExplicitSchema(string functionName, string plaintext, string password, Schema schemaVersion)
+        private void performSymmetricTestWithExplicitSchema(string functionName, string plainText, string password,
+            Schema schemaVersion)
         {
             Encryptor encryptor = new Encryptor();
-            string encryptedB64 = encryptor.Encrypt(plaintext, password, schemaVersion);
+            var plaintextBytes = Encoding.UTF8.GetBytes(plainText);
+            var encryptedB64 = encryptor.Encrypt(plaintextBytes, password, schemaVersion);
 
             Decryptor decryptor = new Decryptor();
-            string decrypted = decryptor.Decrypt(encryptedB64, password);
+            var decrypted = decryptor.Decrypt(encryptedB64, password);
+            var decryptedString = Encoding.UTF8.GetString(decrypted);
 
-            this.reportSuccess(functionName, decrypted == plaintext);
+            reportSuccess(functionName, plainText == decryptedString);
         }
 
         private void performDecryptionTest(string functionName, string encrypted, string expected, string password)
         {
             Decryptor cryptor = new Decryptor();
-            string decrypted = cryptor.Decrypt(encrypted, password);
+            var bytes = Convert.FromBase64String(encrypted);
+            var decrypted = cryptor.Decrypt(bytes, password);
+            var decryptedString = Encoding.UTF8.GetString(decrypted);
 
-            this.reportSuccess(functionName, decrypted == expected);
+            reportSuccess(functionName, decryptedString == expected);
         }
 
         private void performEncryptionTest(string functionName, string plaintext, string password)
         {
             Encryptor cryptor = new Encryptor();
-            string encrypted = cryptor.Encrypt(plaintext, password);
+            var bytes = Encoding.UTF8.GetBytes(plaintext);
+            var encrypted = cryptor.Encrypt(bytes, password);
+            var encryptedString = Encoding.UTF8.GetString(encrypted);
 
-            this.reportSuccess(functionName, encrypted != "" && encrypted != plaintext);
+            reportSuccess(functionName, encryptedString != "" && encryptedString != plaintext);
         }
 
         private void performEncryptionTestWithExplicitSchema(string functionName, string plaintext, string password, Schema schemaVersion)
         {
             Encryptor cryptor = new Encryptor();
-            string encrypted = cryptor.Encrypt(plaintext, password, schemaVersion);
+            var bytes = Encoding.UTF8.GetBytes(plaintext);
+            var encrypted = cryptor.Encrypt(bytes, password, schemaVersion);
+            var encryptedString = Encoding.UTF8.GetString(encrypted);
 
-            this.reportSuccess(functionName, encrypted != "" && encrypted != plaintext);
+            reportSuccess(functionName, encryptedString != "" && encryptedString != plaintext);
         }
 
         private void performEncryptionTestWithSchemaCheck(string functionName, string plaintext, string password, Schema schemaVersion)
         {
             Encryptor cryptor = new Encryptor();
-            string encryptedB64 = cryptor.Encrypt(plaintext, password, schemaVersion);
-            byte[] encrypted = Convert.FromBase64String(encryptedB64);
+            var bytes = Encoding.UTF8.GetBytes(plaintext);
+            var encrypted = cryptor.Encrypt(bytes, password, schemaVersion);
 
             Schema actualSchemaVersion = (Schema)encrypted[0];
             this.reportSuccess(functionName, actualSchemaVersion == schemaVersion);
@@ -308,6 +322,11 @@ namespace RNCryptor.Test
             output += " " + status;
 
             Console.WriteLine(output);
+        }
+
+        private bool AreArraysEqual(IEnumerable<byte> array1, IEnumerable<byte> array2)
+        {
+            return array1.SequenceEqual(array2);
         }
     }
 }
